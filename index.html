@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVC Impedance Trend Monitor</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <script src="data/impedance_data.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Varela Round"', 'sans-serif'], noto: ['"Noto Sans KR"', 'sans-serif'] },
+                    colors: { slate: { 850: '#1e293b' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Varela Round', sans-serif !important; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .chart-container { position: relative; height: 260px; width: 100%; }
+        .table-sticky th { position: sticky; top: 0; background-color: #f8fafc; z-index: 10; }
+        .scale-btn { transition: all 0.2s; }
+        .scale-btn:active { transform: scale(0.95); }
+        .blur-bg { backdrop-filter: blur(8px); }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col text-slate-800 relative">
+
+    <div id="security-overlay" class="fixed inset-0 z-[9999] bg-slate-900/90 blur-bg flex flex-col items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border border-slate-200">
+            <div class="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100 p-2">
+                <img src="img/logo_company.png" class="w-full h-full object-contain" alt="Company Logo">
+            </div>
+            <h2 class="text-xl font-bold text-slate-800 mb-2">Access Restricted</h2>
+            <p class="text-sm text-slate-500 mb-6">Please enter the access code</p>
+            
+            <form onsubmit="event.preventDefault(); checkPassword();" class="space-y-4">
+                <input type="password" id="password-input" placeholder="Passcode" 
+                       class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg tracking-widest transition-all">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-indigo-200">
+                    Unlock Dashboard
+                </button>
+            </form>
+            <p id="login-error" class="text-red-500 text-xs font-bold mt-4 hidden animate-pulse">
+                <i data-lucide="alert-circle" class="w-3 h-3 inline mr-1"></i> Incorrect Password
+            </p>
+        </div>
+        <p class="text-slate-400 text-xs mt-8">ASENDIA Manufacturing Center &copy; 2026</p>
+    </div>
+
+    <header class="sticky top-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-40 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-indigo-200 shadow-lg">
+                <i data-lucide="trending-up" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-slate-900 tracking-tight">EVC Counter-loaders Impedance Trend</h1>
+                <p class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Statistical Process Control Monitor</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+             <div class="bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2 border border-slate-200">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-xs font-bold text-slate-600">Live Data</span>
+             </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1">
+        
+        <aside class="sticky top-16 h-[calc(100vh-4rem)] w-72 bg-white border-r border-slate-200 flex flex-col py-6 px-5 overflow-y-auto shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
+            <div class="mb-6">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Select Module</label>
+                <div class="relative">
+                    <i data-lucide="cpu" class="absolute left-3 top-3 w-4 h-4 text-slate-400 z-10"></i>
+                    <select id="moduleSelector" class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-100"></select>
+                    <i data-lucide="chevron-down" class="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="flex-1 min-h-[150px]">
+                <h3 class="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <i data-lucide="list" class="w-3 h-3 text-indigo-500"></i> Active Counter-loaders
+                </h3>
+                <div id="unit-legend" class="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scroll"></div>
+            </div>
+
+            <div class="mt-auto mb-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <h4 class="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">SPC Guide Line</h4>
+                <div class="space-y-3 text-xs text-slate-600 font-noto">
+                    <div class="flex items-center gap-3">
+                        <span class="w-4 h-0.5 bg-slate-400"></span>
+                        <span class="font-medium text-slate-700">Mean Line</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="w-4 h-0.5 bg-red-400 border-t border-dashed border-red-400"></span>
+                        <span class="font-medium text-slate-700">UCL/LCL (3σ)</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-bold pt-1 border-t border-slate-200/50 mt-1">
+                        * SPC lines appear when N ≥ 20
+                    </p>
+                </div>
+            </div>
+            
+            <a href="impedance_admin.html" class="pt-4 border-t border-slate-100 group block hover:bg-slate-50 -mx-2 px-2 rounded-xl transition-colors">
+                <div class="flex items-center gap-3">
+                    <img src="img/logo_company.png" class="w-10 h-10 rounded-xl shadow-sm border border-slate-100 object-cover bg-white" alt="MTC Logo">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">Manufacturing<br>Technology Center</span>
+                        <span class="text-[10px] text-slate-400 mt-1 flex items-center gap-1 group-hover:text-indigo-500">
+                            <i data-lucide="settings" class="w-3 h-3"></i> Admin Page
+                        </span>
+                    </div>
+                </div>
+            </a>
+        </aside>
+
+        <main class="flex-1 bg-slate-50/50 p-6">
+            <div class="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-red-500 rounded-full"></span> HF Real (Z)
+                            <span class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded font-bold ml-1">Ohms</span>
+                        </h2>
+                        <div class="flex gap-1">
+                            <button onclick="changeZoom('chart-hf-r', -0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">-</button>
+                            <button onclick="changeZoom('chart-hf-r', 0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4"><canvas id="chart-hf-r"></canvas></div>
+                    <div class="overflow-auto h-[120px] border-t border-slate-100 pt-2 custom-scroll">
+                        <table class="w-full text-[10px] text-center border-collapse table-sticky" id="table-hf-r"></table>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-orange-500 rounded-full"></span> HF Imag (Z)
+                            <span class="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded font-bold ml-1">jOhms</span>
+                        </h2>
+                        <div class="flex gap-1">
+                            <button onclick="changeZoom('chart-hf-i', -0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">-</button>
+                            <button onclick="changeZoom('chart-hf-i', 0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4"><canvas id="chart-hf-i"></canvas></div>
+                    <div class="overflow-auto h-[120px] border-t border-slate-100 pt-2 custom-scroll">
+                        <table class="w-full text-[10px] text-center border-collapse table-sticky" id="table-hf-i"></table>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-blue-500 rounded-full"></span> LF Real (Z)
+                            <span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold ml-1">Ohms</span>
+                        </h2>
+                        <div class="flex gap-1">
+                            <button onclick="changeZoom('chart-lf-r', -0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">-</button>
+                            <button onclick="changeZoom('chart-lf-r', 0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4"><canvas id="chart-lf-r"></canvas></div>
+                    <div class="overflow-auto h-[120px] border-t border-slate-100 pt-2 custom-scroll">
+                        <table class="w-full text-[10px] text-center border-collapse table-sticky" id="table-lf-r"></table>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-indigo-500 rounded-full"></span> LF Imag (Z)
+                            <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold ml-1">jOhms</span>
+                        </h2>
+                        <div class="flex gap-1">
+                            <button onclick="changeZoom('chart-lf-i', -0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">-</button>
+                            <button onclick="changeZoom('chart-lf-i', 0.05)" class="scale-btn w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded text-slate-600 font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4"><canvas id="chart-lf-i"></canvas></div>
+                    <div class="overflow-auto h-[120px] border-t border-slate-100 pt-2 custom-scroll">
+                        <table class="w-full text-[10px] text-center border-collapse table-sticky" id="table-lf-i"></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // =========================================================================
+        // [1. CONFIGURATION]
+        // =========================================================================
+        const MODULE_MAP = {
+            'q_ferrite': 'Quantum2013D_Ferrite', 'q_air': 'Quantum2013D_Air',
+            'q_2m': 'Quantum2013D_2M', 'q_2014': 'Quantum2014D',
+            't_1213': 'Tykon1213', 't_0527': 'Tykon0527', 'chronos': 'Chronos'
+        };
+        const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#db2777', '#4f46e5'];
+
+        let chartInstances = {};
+        let scaleState = { 'chart-hf-r': 0.3, 'chart-hf-i': 0.3, 'chart-lf-r': 0.3, 'chart-lf-i': 0.3 };
+        let currentMeans = { 'chart-hf-r': 0, 'chart-hf-i': 0, 'chart-lf-r': 0, 'chart-lf-i': 0 };
+
+        // =========================================================================
+        // [2. AUTHENTICATION]
+        // =========================================================================
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            const errorMsg = document.getElementById('login-error');
+            
+            if(input === 'evc2580') {
+                const overlay = document.getElementById('security-overlay');
+                overlay.style.opacity = '0';
+                overlay.style.transition = 'opacity 0.5s';
+                setTimeout(() => { 
+                    overlay.style.display = 'none'; 
+                    initApp(); 
+                }, 500);
+            } else {
+                errorMsg.classList.remove('hidden');
+                document.getElementById('password-input').value = '';
+                document.getElementById('password-input').focus();
+            }
+        }
+
+        // =========================================================================
+        // [3. INIT]
+        // =========================================================================
+        function initApp() {
+            lucide.createIcons();
+            if (typeof IMPEDANCE_DB === 'undefined') {
+                alert("Data file (data/impedance_data.js) not found.\nPlease ensure the file exists.");
+                return;
+            }
+            initModuleSelector();
+            updateDashboard(Object.keys(MODULE_MAP)[0]);
+        }
+
+        function initModuleSelector() {
+            const selector = document.getElementById('moduleSelector');
+            Object.entries(MODULE_MAP).forEach(([key, name]) => {
+                const opt = document.createElement('option');
+                opt.value = key; opt.textContent = name; selector.appendChild(opt);
+            });
+            selector.addEventListener('change', (e) => updateDashboard(e.target.value));
+        }
+
+        // =========================================================================
+        // [4. DATA PROCESSING]
+        // =========================================================================
+        function updateDashboard(moduleId) {
+            const rawData = IMPEDANCE_DB[moduleId] || [];
+            
+            const months = [...new Set(rawData.map(d => d.month))].sort();
+            
+            const serialGroups = {};
+            rawData.forEach(row => {
+                if(!serialGroups[row.serial]) serialGroups[row.serial] = {};
+                serialGroups[row.serial][row.month] = row;
+            });
+            const serials = Object.keys(serialGroups).sort();
+
+            renderComponent('chart-hf-r', 'table-hf-r', months, serials, serialGroups, 'hf_r');
+            renderComponent('chart-hf-i', 'table-hf-i', months, serials, serialGroups, 'hf_i');
+            renderComponent('chart-lf-r', 'table-lf-r', months, serials, serialGroups, 'lf_r');
+            renderComponent('chart-lf-i', 'table-lf-i', months, serials, serialGroups, 'lf_i');
+
+            updateLegendUI(serials);
+        }
+
+        function renderComponent(canvasId, tableId, months, serials, serialGroups, dataKey) {
+            let allValues = [];
+            const datasets = serials.map((sn, idx) => {
+                const color = COLORS[idx % COLORS.length];
+                const dataPoints = months.map(m => {
+                    const val = serialGroups[sn][m] ? serialGroups[sn][m][dataKey] : null;
+                    if(val !== null) allValues.push(val);
+                    return val;
+                });
+                return {
+                    label: sn, data: dataPoints,
+                    borderColor: color, backgroundColor: color,
+                    borderWidth: 2, pointRadius: 3, tension: 0.1, fill: false
+                };
+            });
+
+            const stats = calculateStats(allValues);
+            currentMeans[canvasId] = stats.mean;
+            const annotations = getSPCAnnotations(stats, months);
+
+            renderChartJS(canvasId, months, datasets, annotations, stats);
+            renderTableHTML(tableId, months, serials, serialGroups, dataKey);
+        }
+
+        // =========================================================================
+        // [5. CHART RENDERING]
+        // =========================================================================
+        function renderChartJS(canvasId, labels, datasets, annotations, stats) {
+            const factor = scaleState[canvasId];
+            const meanVal = stats.mean || 10; 
+            const yMin = meanVal * (1 - factor);
+            const yMax = meanVal * (1 + factor);
+
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        annotation: { annotations: annotations },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { min: yMin, max: yMax, grid: { color: '#f1f5f9' } }
+                    }
+                }
+            });
+        }
+
+        // =========================================================================
+        // [6. TABLE RENDERING]
+        // =========================================================================
+        function renderTableHTML(tableId, months, serials, serialGroups, dataKey) {
+            const table = document.getElementById(tableId);
+            table.innerHTML = '';
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `<th class="p-2 bg-slate-50 border-b border-slate-200 text-slate-500 font-bold sticky top-0 z-10">Month</th>`;
+            serials.forEach((sn, i) => {
+                const color = COLORS[i % COLORS.length];
+                headerRow.innerHTML += `<th class="p-2 bg-slate-50 border-b border-slate-200 font-bold sticky top-0 z-10" style="color:${color}">${sn}</th>`;
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            months.forEach(month => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0";
+                tr.innerHTML = `<td class="p-1.5 font-medium text-slate-600 bg-white sticky left-0">${month}</td>`;
+                
+                serials.forEach(sn => {
+                    const val = serialGroups[sn][month] ? serialGroups[sn][month][dataKey] : '-';
+                    const valClass = val !== '-' ? 'font-bold text-slate-700' : 'text-slate-300';
+                    tr.innerHTML += `<td class="p-1.5 ${valClass}">${val}</td>`;
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+        }
+
+        // =========================================================================
+        // [7. STATS & HELPERS]
+        // =========================================================================
+        function calculateStats(values) {
+            const n = values.length;
+            if (n === 0) return { n: 0, mean: 0, stdDev: 0 };
+            const sum = values.reduce((a, b) => a + b, 0);
+            const mean = sum / n;
+            const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+            return { n, mean, stdDev: Math.sqrt(variance) };
+        }
+
+        function getSPCAnnotations(stats, months) {
+            if (stats.n < 20) {
+                return {
+                    boxLabel: {
+                        type: 'label', xValue: months[Math.floor(months.length/2)] || 0, yValue: stats.mean || 0,
+                        backgroundColor: 'rgba(255,255,255,0.8)',
+                        content: [`Data insufficient for SPC`, `(Count: ${stats.n} < 20)`],
+                        font: { size: 12, weight: 'bold' }, color: '#94a3b8'
+                    }
+                };
+            }
+            const ucl = stats.mean + (3 * stats.stdDev);
+            const lcl = stats.mean - (3 * stats.stdDev);
+            
+            return {
+                lineMean: { type: 'line', yMin: stats.mean, yMax: stats.mean, borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5] },
+                lineUCL: { type: 'line', yMin: ucl, yMax: ucl, borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], label: {display:true, content:`UCL: ${ucl.toFixed(2)}`, position:'end', backgroundColor:'rgba(239,68,68,0.7)', font:{size:9}} },
+                lineLCL: { type: 'line', yMin: lcl, yMax: lcl, borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], label: {display:true, content:`LCL: ${lcl.toFixed(2)}`, position:'end', backgroundColor:'rgba(239,68,68,0.7)', font:{size:9}} }
+            };
+        }
+
+        function changeZoom(canvasId, delta) {
+            let newFactor = scaleState[canvasId] - delta;
+            if (newFactor < 0.05) newFactor = 0.05;
+            if (newFactor > 2.0) newFactor = 2.0;
+            scaleState[canvasId] = newFactor;
+            
+            const chart = chartInstances[canvasId];
+            const mean = currentMeans[canvasId];
+            if(chart && mean) {
+                chart.options.scales.y.min = mean * (1 - newFactor);
+                chart.options.scales.y.max = mean * (1 + newFactor);
+                chart.update();
+            }
+        }
+
+        function updateLegendUI(serials) {
+            const container = document.getElementById('unit-legend');
+            container.innerHTML = '';
+            serials.forEach((sn, idx) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2 p-2 rounded hover:bg-slate-50 transition-colors text-xs font-medium text-slate-600";
+                div.innerHTML = `<span class="w-2.5 h-2.5 rounded-full" style="background-color: ${COLORS[idx % COLORS.length]}"></span><span>${sn}</span>`;
+                container.appendChild(div);
+            });
+        }
+        
+        window.onload = function() {
+            document.getElementById('password-input').focus();
+        };
+    </script>
+</body>
+</html>
