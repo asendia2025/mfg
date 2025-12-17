@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVC Impedance Manager (SPC Ready)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="data/impedance_data.js"></script>
+    
+    <script>
+        tailwind.config = { 
+            theme: { 
+                extend: { 
+                    fontFamily: { 
+                        sans: ['"Varela Round"', 'sans-serif'],
+                        noto: ['"Noto Sans KR"', 'sans-serif'] 
+                    } 
+                } 
+            } 
+        }
+    </script>
+    <style>
+        body { font-family: 'Varela Round', sans-serif !important; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .tab-btn.active { background-color: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8 selection:bg-slate-800 selection:text-white">
+
+    <div class="max-w-[1500px] mx-auto bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden flex flex-col min-h-[85vh]">
+        
+        <div class="p-6 md:p-8 flex-1">
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-100 pb-4 gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="line-chart" class="w-6 h-6 text-blue-600"></i>
+                        EVC Impedance Data Manager
+                    </h1>
+                    <p class="text-sm text-slate-500 mt-1">Monthly Batch Input for SPC Trend Monitoring</p>
+                </div>
+                <button onclick="downloadJS()" class="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold transition-all shadow-md text-sm whitespace-nowrap">
+                    <i data-lucide="save" class="w-4 h-4"></i> Save & Download JS
+                </button>
+            </header>
+
+            <div class="mb-6">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Select Module</label>
+                <div class="flex flex-wrap gap-2" id="module-tabs">
+                    </div>
+            </div>
+
+            <div class="mb-6 flex flex-col xl:flex-row gap-4">
+                
+                <div class="flex-1 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col md:flex-row items-end md:items-center gap-4">
+                    <div class="flex-1">
+                        <h3 class="text-sm font-bold text-blue-900 mb-1 flex items-center gap-1">
+                            <i data-lucide="calendar-plus" class="w-4 h-4"></i> 정기 점검 일괄 추가 (Batch)
+                        </h3>
+                        <p class="text-xs text-blue-600/80">기존 등록된 모든 장비 리스트를 불러옵니다.</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <div class="w-full md:w-40">
+                            <label class="text-[10px] font-bold text-blue-400 uppercase mb-1 block">Target Month</label>
+                            <input type="month" id="batch-month" class="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-slate-700 bg-white shadow-sm">
+                        </div>
+                        <button onclick="addMonthlyBatch()" class="h-[38px] mt-auto px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+                            <i data-lucide="layers" class="w-4 h-4"></i> Generate List
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 xl:flex-none xl:w-[450px] p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col md:flex-row items-end md:items-center gap-3">
+                    <div class="flex-1">
+                        <h3 class="text-sm font-bold text-slate-700 mb-1 flex items-center gap-1">
+                            <i data-lucide="plus-square" class="w-4 h-4"></i> 신규 장비 개별 추가
+                        </h3>
+                        <p class="text-xs text-slate-500">리스트에 없는 신규/임시 장비 1대를 추가합니다.</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <div class="w-full">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">New Serial No.</label>
+                            <input type="text" id="new-serial-input" placeholder="e.g. 2013_NEW" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white shadow-sm">
+                        </div>
+                        <button onclick="addManualRow()" class="h-[38px] mt-auto px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-bold text-sm shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-hidden border border-slate-200 rounded-lg shadow-sm bg-white">
+                <div class="overflow-x-auto max-h-[60vh]">
+                    <table class="w-full text-xs text-left whitespace-nowrap relative">
+                        <thead class="text-[10px] font-bold text-slate-500 uppercase bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="px-3 py-3 w-28 bg-slate-50">Month</th>
+                                <th class="px-3 py-3 w-32 bg-slate-100/50 text-slate-600 border-r border-slate-200">Serial Number</th>
+                                
+                                <th class="px-2 py-3 text-center bg-red-50/30 text-red-600 border-l border-red-100">HF Real (Z)<br><span class="text-[9px] text-red-400 normal-case">ohms</span></th>
+                                <th class="px-2 py-3 text-center bg-red-50/30 text-red-600">HF Imag (Z)<br><span class="text-[9px] text-red-400 normal-case">johms</span></th>
+                                
+                                <th class="px-2 py-3 text-center bg-blue-50/30 text-blue-600 border-l border-blue-100">LF Real (Z)<br><span class="text-[9px] text-blue-400 normal-case">ohms</span></th>
+                                <th class="px-2 py-3 text-center bg-blue-50/30 text-blue-600">LF Imag (Z)<br><span class="text-[9px] text-blue-400 normal-case">johms</span></th>
+                                
+                                <th class="px-4 py-3 w-64 border-l border-slate-200">Note</th>
+                                <th class="px-2 py-3 text-center w-12">Del</th>
+                            </tr>
+                        </thead>
+                        <tbody id="editor-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="empty-msg" class="hidden py-12 text-center">
+                <p class="text-slate-400 text-xs">No data found. Use the controls above to add data.</p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const CONFIG = {
+            modules: [
+                { id: 'q_ferrite', name: 'Quantum2013D_Ferrite', serials: ['2013_0001', '2013_0002', '2013_0003', '2013_0004', '2013_0005', '2013_0006'] },
+                { id: 'q_air',     name: 'Quantum2013D_Air',     serials: ['2013_0007', '2013_0008', '2013_0009'] },
+                { id: 'q_2m',      name: 'Quantum2013D_2M',      serials: ['2_0001', '2_0002'] },
+                { id: 'q_2014',    name: 'Quantum2014D',         serials: ['2014_0001'] },
+                { id: 't_1213',    name: 'Tykon1213',            serials: ['1213_0001', '1213_0002', '1213_0003', '1213_0005', '1213_0006', '1213_0007'] },
+                { id: 't_0527',    name: 'Tykon0527',            serials: ['0527_0001'] },
+                { id: 'chronos',   name: 'Chronos',              serials: ['C13_0001'] }
+            ]
+        };
+
+        let currentModuleId = CONFIG.modules[0].id;
+        let localData = (typeof IMPEDANCE_DB !== 'undefined') ? JSON.parse(JSON.stringify(IMPEDANCE_DB)) : {};
+
+        CONFIG.modules.forEach(mod => {
+            if (!localData[mod.id]) localData[mod.id] = [];
+        });
+
+        // Set default date to current month
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        document.getElementById('batch-month').value = `${yyyy}-${mm}`;
+
+        // --- Functions ---
+        function initTabs() {
+            const container = document.getElementById('module-tabs');
+            container.innerHTML = '';
+            CONFIG.modules.forEach(mod => {
+                const btn = document.createElement('button');
+                btn.textContent = mod.name;
+                btn.id = `btn-${mod.id}`;
+                btn.onclick = () => switchModule(mod.id);
+                btn.className = "tab-btn px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 transition-all shadow-sm";
+                container.appendChild(btn);
+            });
+        }
+
+        function switchModule(modId) {
+            currentModuleId = modId;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-50', 'border-blue-200', 'text-blue-600');
+                btn.classList.add('text-slate-500', 'bg-white');
+            });
+            document.getElementById(`btn-${modId}`).classList.add('active', 'bg-blue-50', 'border-blue-200', 'text-blue-600');
+            document.getElementById(`btn-${modId}`).classList.remove('bg-white', 'text-slate-500');
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('editor-body');
+            tbody.innerHTML = '';
+            const rows = localData[currentModuleId] || [];
+
+            // Sort: Month Desc, Serial Asc
+            rows.sort((a, b) => {
+                if (a.month === b.month) return a.serial.localeCompare(b.serial);
+                return b.month.localeCompare(a.month);
+            });
+
+            document.getElementById('empty-msg').className = rows.length === 0 ? "py-12 text-center" : "hidden";
+
+            rows.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors group";
+                const inputNum = "w-full p-1.5 border border-transparent hover:border-slate-300 rounded text-center text-slate-700 focus:border-blue-500 focus:bg-white focus:outline-none text-xs font-medium bg-transparent transition-all";
+                const inputText = "w-full p-1.5 border border-transparent hover:border-slate-300 rounded text-left text-slate-700 focus:border-blue-500 focus:bg-white focus:outline-none text-xs bg-transparent transition-all";
+
+                tr.innerHTML = `
+                    <td class="px-3 py-2"><input type="month" value="${row.month}" onchange="updateData(${index}, 'month', this.value)" class="${inputText} text-center font-bold text-slate-600 bg-slate-50/50"></td>
+                    <td class="px-3 py-2 font-bold text-slate-700 bg-slate-50/30 border-r border-slate-100">${row.serial}</td>
+                    <td class="px-2 py-2 bg-red-50/5 border-l border-red-50"><input type="number" step="0.01" value="${row.hf_r}" onchange="updateData(${index}, 'hf_r', this.value)" class="${inputNum} text-red-700 font-bold" placeholder="-"></td>
+                    <td class="px-2 py-2 bg-red-50/5 border-r border-red-50"><input type="number" step="0.01" value="${row.hf_i}" onchange="updateData(${index}, 'hf_i', this.value)" class="${inputNum} text-red-700" placeholder="-"></td>
+                    <td class="px-2 py-2 bg-blue-50/5 border-l border-blue-50"><input type="number" step="0.01" value="${row.lf_r}" onchange="updateData(${index}, 'lf_r', this.value)" class="${inputNum} text-blue-700 font-bold" placeholder="-"></td>
+                    <td class="px-2 py-2 bg-blue-50/5 border-r border-blue-50"><input type="number" step="0.01" value="${row.lf_i}" onchange="updateData(${index}, 'lf_i', this.value)" class="${inputNum} text-blue-700" placeholder="-"></td>
+                    <td class="px-4 py-2 border-l border-slate-100"><input type="text" value="${row.note || ''}" maxlength="100" onchange="updateData(${index}, 'note', this.value)" class="${inputText}" placeholder="..."></td>
+                    <td class="px-2 py-2 text-center"><button onclick="deleteRow(${index})" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function updateData(index, key, value) {
+            const rows = localData[currentModuleId];
+            rows[index][key] = (key === 'note' || key === 'month') ? value : (value === '' ? 0 : parseFloat(value));
+        }
+
+        // 1. Batch Add
+        function addMonthlyBatch() {
+            const targetMonth = document.getElementById('batch-month').value;
+            if(!targetMonth) return alert("Please select a target month.");
+            
+            const existing = localData[currentModuleId].filter(r => r.month === targetMonth);
+            if(existing.length > 0 && !confirm(`Already data exists for ${targetMonth}. Add anyway?`)) return;
+
+            CONFIG.modules.find(m => m.id === currentModuleId).serials.forEach(sn => {
+                localData[currentModuleId].push({ serial: sn, month: targetMonth, hf_r: 0, hf_i: 0, lf_r: 0, lf_i: 0, note: '' });
+            });
+            renderTable();
+        }
+
+        // 2. Manual Add (New Feature)
+        function addManualRow() {
+            const serialInput = document.getElementById('new-serial-input');
+            const targetMonth = document.getElementById('batch-month').value;
+            const sn = serialInput.value.trim();
+
+            if(!sn) return alert("Please enter a Serial Number.");
+            if(!targetMonth) return alert("Please select a Month.");
+
+            localData[currentModuleId].push({
+                serial: sn,
+                month: targetMonth,
+                hf_r: 0, hf_i: 0, lf_r: 0, lf_i: 0,
+                note: 'Manual Add'
+            });
+            
+            serialInput.value = ''; // Reset input
+            renderTable();
+        }
+
+        function deleteRow(index) {
+            if(confirm("Delete this entry?")) { localData[currentModuleId].splice(index, 1); renderTable(); }
+        }
+
+        function downloadJS() {
+            const dataStr = "const IMPEDANCE_DB = " + JSON.stringify(localData, null, 2) + ";";
+            const blob = new Blob([dataStr], { type: "text/javascript" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "impedance_data.js";
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            alert("✅ Saved! Please overwrite the existing file in the 'data' folder.");
+        }
+
+        initTabs();
+        switchModule(CONFIG.modules[0].id);
+    </script>
+</body>
+</html>
