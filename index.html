@@ -11,7 +11,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- annotation 플러그인은 여기서 사용하지 않지만 만약을 위해 스크립트는 둡니다 -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
@@ -72,7 +71,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-bold text-slate-900 tracking-tight">EVC Counter-loaders Impedance Trend</h1>
-                <p class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Process Monitor</p>
+                <p class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Statistical Process Control Monitor</p>
             </div>
         </div>
         
@@ -103,9 +102,24 @@
                 <div id="unit-legend" class="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scroll"></div>
             </div>
 
-            <!-- 고객용 페이지이므로 SPC Guide Line 영역을 제거했습니다. -->
+            <div class="mt-auto mb-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <h4 class="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">SPC Guide Line</h4>
+                <div class="space-y-3 text-xs text-slate-600 font-noto">
+                    <div class="flex items-center gap-3">
+                        <span class="w-4 h-0.5 bg-slate-400"></span>
+                        <span class="font-medium text-slate-700">Mean Line</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="w-4 h-0.5 bg-red-400 border-t border-dashed border-red-400"></span>
+                        <span class="font-medium text-slate-700">UCL/LCL (3σ)</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-bold pt-1 border-t border-slate-200/50 mt-1">
+                        * SPC lines appear when N ≥ 20
+                    </p>
+                </div>
+            </div>
             
-            <a href="impedance_admin.html" class="mt-auto pt-4 border-t border-slate-100 group block hover:bg-slate-50 -mx-2 px-2 rounded-xl transition-colors">
+            <a href="impedance_admin.html" class="pt-4 border-t border-slate-100 group block hover:bg-slate-50 -mx-2 px-2 rounded-xl transition-colors">
                 <div class="flex items-center gap-3">
                     <img src="img/logo_company.png" class="w-10 h-10 rounded-xl shadow-sm border border-slate-100 object-cover bg-white" alt="MTC Logo">
                     <div class="flex flex-col">
@@ -199,7 +213,6 @@
         const MODULE_MAP = {
             'q_ferrite': 'Quantum2013D_Ferrite', 'q_air': 'Quantum2013D_Air',
             'q_2m': 'Quantum2013D_2M', 'q_2014': 'Quantum2014D',
-            'q_2014_2m': 'Quantum2014D_2M',
             't_1213': 'Tykon1213', 't_0527': 'Tykon0527', 'chronos': 'Chronos'
         };
         const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#db2777', '#4f46e5'];
@@ -293,9 +306,7 @@
 
             const stats = calculateStats(allValues);
             currentMeans[canvasId] = stats.mean;
-            
-            // 고객 전용이므로 SPC 라인(Annotations)을 생성하지 않습니다.
-            const annotations = {}; 
+            const annotations = getSPCAnnotations(stats, months);
 
             renderChartJS(canvasId, months, datasets, annotations, stats);
             renderTableHTML(tableId, months, serials, serialGroups, dataKey);
@@ -321,8 +332,7 @@
                     responsive: true, maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        // 빈 객체가 들어가므로 보조선이 그려지지 않습니다.
-                        annotation: { annotations: annotations }, 
+                        annotation: { annotations: annotations },
                         tooltip: { mode: 'index', intersect: false }
                     },
                     scales: {
@@ -378,7 +388,26 @@
             return { n, mean, stdDev: Math.sqrt(variance) };
         }
 
-        // 고객용이므로 getSPCAnnotations 함수는 사용하지 않아 삭제했습니다.
+        function getSPCAnnotations(stats, months) {
+            if (stats.n < 20) {
+                return {
+                    boxLabel: {
+                        type: 'label', xValue: months[Math.floor(months.length/2)] || 0, yValue: stats.mean || 0,
+                        backgroundColor: 'rgba(255,255,255,0.8)',
+                        content: [`Data insufficient for SPC`, `(Count: ${stats.n} < 20)`],
+                        font: { size: 12, weight: 'bold' }, color: '#94a3b8'
+                    }
+                };
+            }
+            const ucl = stats.mean + (3 * stats.stdDev);
+            const lcl = stats.mean - (3 * stats.stdDev);
+            
+            return {
+                lineMean: { type: 'line', yMin: stats.mean, yMax: stats.mean, borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5] },
+                lineUCL: { type: 'line', yMin: ucl, yMax: ucl, borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], label: {display:true, content:`UCL: ${ucl.toFixed(2)}`, position:'end', backgroundColor:'rgba(239,68,68,0.7)', font:{size:9}} },
+                lineLCL: { type: 'line', yMin: lcl, yMax: lcl, borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], label: {display:true, content:`LCL: ${lcl.toFixed(2)}`, position:'end', backgroundColor:'rgba(239,68,68,0.7)', font:{size:9}} }
+            };
+        }
 
         function changeZoom(canvasId, delta) {
             let newFactor = scaleState[canvasId] - delta;
