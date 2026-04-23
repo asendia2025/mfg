@@ -105,16 +105,9 @@
             <div class="mt-auto mb-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <h4 class="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-wider">SPC Guide Line</h4>
                 <div class="space-y-3 text-xs text-slate-600 font-noto">
-                    <div class="flex items-center gap-3">
-                        <span class="w-4 h-0.5 bg-slate-400"></span>
-                        <span class="font-medium text-slate-700">Mean Line</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="w-4 h-0.5 bg-red-400 border-t border-dashed border-red-400"></span>
-                        <span class="font-medium text-slate-700">UCL/LCL (3σ)</span>
-                    </div>
+
                     <p class="text-[10px] text-slate-400 font-bold pt-1 border-t border-slate-200/50 mt-1">
-                        * SPC lines appear when N ≥ 20
+                        * Mean line appears when N ≥ 20
                     </p>
                 </div>
             </div>
@@ -389,24 +382,7 @@
         }
 
         function getSPCAnnotations(stats, months) {
-            if (stats.n < 20) {
-                return {
-                    boxLabel: {
-                        type: 'label', xValue: months[Math.floor(months.length/2)] || 0, yValue: stats.mean || 0,
-                        backgroundColor: 'rgba(255,255,255,0.8)',
-                        content: [`Data insufficient for SPC`, `(Count: ${stats.n} < 20)`],
-                        font: { size: 12, weight: 'bold' }, color: '#94a3b8'
-                    }
-                };
-            }
-            const ucl = stats.mean + (3 * stats.stdDev);
-            const lcl = stats.mean - (3 * stats.stdDev);
-            
-            return {
-                lineMean: { type: 'line', yMin: stats.mean, yMax: stats.mean, borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5] },
-                lineUCL: { type: 'line', yMin: ucl, yMax: ucl, borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], label: {display:true, content:`UCL: ${ucl.toFixed(2)}`, position:'end', backgroundColor:'rgba(239,68,68,0.7)', font:{size:9}} },
-                lineLCL: { type: 'line', yMin: lcl, yMax: lcl, borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], label: {display:true, content:`LCL: ${lcl.toFixed(2)}`, position:'end', backgroundColor:'rgba(239,68,68,0.7)', font:{size:9}} }
-            };
+            return {};
         }
 
         function changeZoom(canvasId, delta) {
